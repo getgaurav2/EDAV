@@ -1,0 +1,291 @@
+---
+title: "Homework #2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE,
+                      message = FALSE, 
+                      cache = TRUE)
+```
+
+### Chapter 4
+
+#### 1. Slot Machines (Chapter 4 exercises, #3, p. 72)
+
+[5 points]
+
+Do not use *grid.arrange()* for this exercise. Rather, use *gather()* to tidy the data and then facet on window number.  To make the comparison, use relative frequency bar charts (the heights of the bars in each facet sum to one).  Describe how the distributions differ.
+
+
+1. All the distributions are skewed to the left. 
+2. Window 1 is almost equally  likely to show symbol 0 and Symbol 1. 
+3 . Window 2 and 3 are almost equaly likely to show symbol 0 . Symbol 0 also the most frequent symbol these windows.
+
+```{r}
+#vlt in package DAAG)
+#install.packages("DAAG")
+library("tidyr")
+library("ggplot2")
+library("DAAG")
+a <- vlt %>% gather (key, value , -prize, -night )
+
+ggplot(a, aes(x = value, y = freq)) + geom_bar(aes(y = (..count..)/sum(..count..))) +
+  facet_wrap(~key)
+
+
+
+```
+
+
+
+
+#### 2. Detailed Mortality data ("Death2015.txt")
+
+[21 points]
+
+This data comes from the "Detailed Mortality" database available on https://wonder.cdc.gov/
+
+Code for all preprocessing must be shown. (That is, don't open in the file in Excel or similar, change things around, save it, and then import to R. Why? Because your steps are not reproducible.)
+
+(a) For `Place of Death`, `Ten-Year Age Groups`, and `ICD Chapter Code` variables, do the following:
+
+Identify the type of variable (nominal, ordinal, or discrete) and draw a horizontal bar chart using best practices for order of categories.
+
+#Nominal
+```{r}
+library("dplyr")
+Death2015 <- read.delim("~/Documents/GauravColumbiaUniv/Data Viz/HW2/Death2015.txt")
+
+countorder <- Death2015 %>% group_by(Place.of.Death) %>% summarize(count = sum(Deaths))
+countorder <- na.omit(countorder)
+ggplot(countorder, aes(reorder(Place.of.Death, count), count)) + geom_col() + coord_flip() + xlab("")
+```
+
+#Ordinal Data 
+```{r}
+library("dplyr")
+countorder1 <- Death2015 %>% group_by(Ten.Year.Age.Groups) %>% summarize(count = sum(Deaths))
+
+
+countorder1$Ten.Year.Age.Groups <- factor(countorder1$Ten.Year.Age.Groups,levels = c( "Not Stated", "85+ years", "75-84 years", "65-74 years","55-64 years", "45-54 years", "35-44 years" , "25-34 years", "15-24 years",  "5-14 years",  "1-4 years", "< 1 year"))
+countorder1 <- na.omit(countorder1)
+ggplot(countorder1, aes(Ten.Year.Age.Groups, count )) + geom_col() + coord_flip() + xlab("")
+
+```
+#Nominal
+```{r}
+countorder <- Death2015 %>% group_by(ICD.Chapter.Code) %>% summarize(count = sum(Deaths))
+
+ggplot(countorder, aes(reorder(ICD.Chapter.Code, count), count)) + geom_col() + coord_flip() + xlab("")
+```
+
+
+(b) Create horizontal bar charts for the ICD sub-chapter codes, one plot per ICD chapter code, by faceting on chapter code, *not* by using *grid.arrange()*.  Use `scales = "free"` with `facet_wrap()`. It should look like this (with data, of course!). Describe notable features.
+
+1. Within all ICD Chapter Codes only one or some times two ICD chapter sub codes cause the most deaths . The death number is not evenly distributed between various sub codes.
+```{r, fig.width = 10, fig.height = 8}
+
+countorder <- Death2015 %>% group_by(ICD.Chapter.Code, ICD.Sub.Chapter.Code ) %>% summarize(count = sum(Deaths))
+countorder <- na.omit(countorder)
+
+ggplot(countorder, aes(reorder(ICD.Sub.Chapter.Code, count), count))  + geom_col() + coord_flip() +xlab("") + facet_wrap( ~ ICD.Chapter.Code, scales = "free") +theme(axis.text.x= element_text(size=1) ) 
+```
+
+(c) Change the `scales` parameter to `scales = "free_y"`. What changed?  What information does this set of graphs provide that wasn't available in part (b)?
+
+
+When we allow scale = free_y , then we can compare the death counts across the panels . We see that C00-C97 is the highest contributor  in the overall death counts.  We can see that the  scale = free is good to compare patterns withing the panels while fixing one of the scales helps us comapre between panels. 
+
+```{r, fig.width = 10, fig.height = 8}
+ggplot(countorder, aes(reorder(ICD.Sub.Chapter.Code, count), count))  + geom_col() + coord_flip() +xlab("")  +ylab("Death count") +facet_wrap( ~ ICD.Chapter.Code, scales = "free_y") 
+
+```
+
+
+
+(d) Redraw the panels as *relative frequency* bar charts rather than *count* bar charts. (The lengths of the bars *in each panel separately* must sum to 1.) What new information do you gain?
+
+Here we are able to do a good comparison betwen the panels as well as get  a good sense of how each of the sub categories vary within each category .  For example C00-C97 is still the biggest contributor  and H00-H05 is relatively smaller than it . 
+
+```{r, fig.width = 10, fig.height = 8}
+
+DeathbyChapterCode <- Death2015 %>% group_by(ICD.Chapter.Code ) %>% summarize(count = sum(Deaths))
+DeathbyChapterCode <- na.omit(DeathbyChapterCode)
+
+countorder <- Death2015 %>% group_by(ICD.Chapter.Code, ICD.Sub.Chapter.Code ) %>% summarize(count = sum(Deaths))
+countorder <- na.omit(countorder)
+
+
+newDF <- merge(x = DeathbyChapterCode, y = countorder, by = "ICD.Chapter.Code", all = TRUE)
+
+ggplot(newDF, aes(reorder(ICD.Sub.Chapter.Code, count.y/count.x), count.y/count.x))  + geom_col() + coord_flip() +xlab("")  +ylab("Death count") + facet_wrap( ~ ICD.Chapter.Code, scales = "free_y") +theme(axis.text.x= element_text(size=1) ) 
+
+```
+
+(e) Choose one of the small panels and redraw it as a single graph, using names rather than codes. (That is, use `ICD Chapter` and `ICD Sub-Chapter` instead of the code versions.)  What type of data is this? Note any interesting features.
+
+
+*This is Nominal data because there is no order in the sub chapter names.* 
+This panel shows that the Congenial heart problems are the highest contributor for deaths in this category . 
+
+
+```{r, fig.width = 12, fig.height = 4}
+
+
+countorder <- Death2015 %>% group_by(ICD.Chapter.Code,ICD.Chapter,  ICD.Sub.Chapter.Code , ICD.Sub.Chapter ) %>% summarize(count = sum(Deaths))
+countorder <- na.omit(countorder)
+
+countorder1 <- countorder[countorder$ICD.Chapter.Code =="Q00-Q99", ]
+
+ggplot(countorder1, aes(reorder(ICD.Sub.Chapter, count ), count ))  + geom_col() + coord_flip() +ylab("Death count") +ggtitle(countorder1$ICD.Chapter) + xlab("")
+```
+
+
+
+#### 3. Detailed Mortality, questions about the data
+
+[6 points]
+
+Cite your sources with links. 
+
+*Centers for Disease Control and Prevention, National Center for Health Statistics. Underlying Cause of Death  1999-2016 on CDC WONDER Online Database, released December, 2017. Data are from the Multiple Cause of Death Files, 1999-2016, as compiled from data provided by the 57 vital statistics jurisdictions through the Vital Statistics Cooperative Program. Accessed at http://wonder.cdc.gov/ucd-icd10.html on Feb 5, 2018 5:08:43 PM*
+
+
+(a) Who is included in the death counts?
+*The data set includes all the deaths that were recorded by the Centers for Disease Control and Prevention in the year 2015 . The dataset aggregates the count of deaths by ICD Codes and ICD Sub-Code.*
+(b) When was this query processed?  (Hint: it's in the file itself; don't provide the file time stamp.)
+
+*Query Date: Feb 5, 2018 5:08:43 PM*
+
+(c) What does "ICD" stand for? Which version is used for this particular dataset? Name five other countries that use the ICD for official mortality data.
+
+*Source : https://en.wikipedia.org/wiki/ICD-10*
+
+*ICD statnds for : International Statistical Classification of Diseases and Related Health Problems.*
+*This particular Dataset uses ICD-10 revision.*
+*Other countries that use ICD-10 codes are : *
+
+Brazil 
+Canada
+China
+Czech Republic
+France.
+
+(d) Which U.S. organizations collects mortality data? Where is the headquarters located?
+
+*Source : https://www.cdc.gov/nchs/nvss/deaths.htm*
+
+*Mortality data from the National Vital Statistics System (NVSS) are a fundamental source of demographic, geographic, and cause-of-death information. This is one of the few sources of health-related data that are comparable for small geographic areas and are available for a long time period in the United States. The data are also used to present the characteristics of those dying in the United States, to determine life expectancy, and to compare mortality trends with other countries.*
+
+*CDC is headquartered in Atltanta , GA*
+
+(e) In brief, how is the data collected?  What is the estimated accuracy rate, according to the dataset documentation?
+
+*source : https://wonder.cdc.gov/wonder/help/ucd.html#*
+
+The Underlying Cause of Death data are produced by the Mortality Statistics Branch, Division of Vital Statistics, National Center for Health Statistics (NCHS), Centers for Disease Control and Prevention (CDC), United States Department of Health and Human Services (US DHHS)
+
+The mortality data are based on information from all death certificates filed in the fifty states and the District of Columbia. Deaths of nonresidents (e.g. nonresident aliens, nationals living abroad, residents of Puerto Rico, Guam, the Virgin Islands, and other territories of the U.S.) and fetal deaths are excluded. Mortality data from the death certificates are coded by the states and provided to NCHS through the Vital Statistics Cooperative Program or coded by NCHS from copies of the original death certificates provided to NCHS by the State registration offices
+
+
+
+
+
+### Chapter 5
+
+#### 1. Movie ratings
+
+[12 points]
+
+Explore *length* vs. *year* in the **ggplot2movies** dataset, after removing outliers. (Choose a reasonable cutoff).
+
+Draw four scatterplots of *length* vs. *year* from the with the following variations:
+
+(a) Points with alpha blending
+
+(b) Points with alpha blending + density estimate contour lines
+
+(c) Hexagonal heatmap of bin counts
+
+(d) Square heatmap of bin counts 
+
+For all, adjust parameters to the levels that provide the best views of the data.
+
+
+
+
+```{r}
+#install.packages("ggplot2movies")
+#install.packages("hexbin")
+library("ggplot2movies")
+library("ggplot2")
+library("hexbin")
+#head(movies)
+ggplot2movies_ds <- movies
+
+
+ggplot2movies_no_outliers <- ggplot2movies_ds
+ggplot2movies_no_outliers$year_out <- ggplot2movies_ds$year %in% boxplot.stats(ggplot2movies_ds$year)$out
+ggplot2movies_no_outliers$length_out <- ggplot2movies_ds$length %in% boxplot.stats(ggplot2movies_ds$length)$out
+
+
+ggplot2movies_no_outliers <- ggplot2movies_no_outliers[ which( ggplot2movies_no_outliers$year_out == FALSE & ggplot2movies_no_outliers$length_out == FALSE),]
+
+
+ggplot(ggplot2movies_no_outliers, aes(x=year, y=length)) +
+  geom_point(alpha = 0.1) + ggtitle("Length vs Year")
+
+ggplot(ggplot2movies_no_outliers, aes(x=year, y=length)) +
+  geom_point(alpha = 0.1) + ggtitle("Length vs Year") + geom_density_2d() 
+
+ggplot(ggplot2movies_no_outliers, aes(x=year, y=length)) + geom_hex(bins=45) + scale_fill_gradientn(colours = terrain.colors(20))
+
+ggplot(ggplot2movies_no_outliers, aes(x=year, y=length)) + coord_equal() + geom_bin2d() +
+scale_fill_gradientn(colours = terrain.colors(20))
+```
+(e) Describe noteworthy features of the data, using the movie ratings example on page 82 (last page of Section 5.3) as a guide.  
+1. In a general sense the number of movies in the data set has increased after 1960's . This is shown by the density of the scatter plot as we move  forward on the x-axis. 
+2. From the contour lines we see that most of the movies are within the 60 to 120 min range. 
+3. There are some movies that are below the 60 min mark made around 1990- 2000 
+
+(f) How do (a)-(d) compare? Are there features that you can see in some but not all of the graphs?
+
+ 1. The contour lines show two pockets of data towards 1930 and 1945 which have a higher count . These are outliers in out data set.
+ 2.  There is only one pocket of high volume data after 2000 that has the most number of movies for any length ( 90 min in this data set) 
+ 3. The scatter plot with contour shows that that there a lot of outliers  . This is not clear from the heatmap  which makes it look more even across the years. 
+
+
+
+#### 2. Leaves (Chapter 5 exercises, #7, p. 96)
+```{r}
+
+splomvar1 <- leafshape %>% dplyr::select(bladelen, petiole, bladewid, arch )
+
+splomvar2 <- leafshape %>% dplyr::select(loglen, logpet, logwid , arch)
+
+plot(splomvar1[1:3])
+plot(splomvar2[1:3])
+
+
+plot(splomvar1[1:3],  col = as.factor(splomvar1$arch))
+
+plot(splomvar2[1:3],  col = as.factor(splomvar2$arch))
+
+
+
+
+
+```
+[6 points]
+
+
+1. From the first plot it looks like there is not much correlatiion between blade length  and petiole  OR blade width and petiole . There seems to be some correlation  between blade width and blade length . 
+
+2. In the second plt as we plot the log of the lengths with each other , we can see that there is some correlation beteen all pairs. 
+
+3. The third plot shows that the ourliers are only for architecture type 1 (Red circles)
+4. the fourth plot shows that the correlation is more pronounced between the following parirs. 
+a. petiole and blade length for arch type (1 )
+b. width and length of blade for both arch 
+c. petiole and blade width for arch type (1) 
