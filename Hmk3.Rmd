@@ -1,0 +1,221 @@
+---
+title: "Homework 3"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(warning = FALSE,
+                      message = FALSE, 
+                      cache = TRUE)
+```
+
+**$1.$ Parallel Coordinates**
+
+$(a)$ Draw a parallel coordinates plot of the data in "ManhattanCDResults.csv" in the data folder on CourseWorks. (Original data source and additional information about the data can be found here:  https://cbcny.org/research/nyc-resident-feedback-survey-community-district-results). Your plot should have one line for each of the twelve Manhattan community districts in the dataset. 
+
+```{r}
+setwd("/Users/charikaarora/Documents/GauravColumbiaUniv/Data Viz")
+```
+
+```{r, fig.width = 10, fig.height = 8}
+MyData <- read.csv(file="ManhattanCDResults.csv", header=TRUE, sep=",")
+library(ggplot2)
+library(GGally)
+```
+
+
+```{r, fig.width = 15, fig.height = 8}
+
+mydata_t <- data.frame(t(MyData))
+
+colnames(mydata_t) <- as.character(unlist(mydata_t[1,]))
+mydata_t <- mydata_t[-c(1,2), ] 
+dist <- as.factor(row.names(mydata_t))
+mydata_t <- as.data.frame(lapply(mydata_t[,], function(y) as.numeric(gsub("%", "", y)))) # convert % from string to numeric
+mydata_t$dist <- dist# add the district names as a column in the data frame 
+ggparcoord(data = mydata_t, columns = 1:45, groupColumn = "dist", scale = "globalminmax" ) +
+theme(text = element_text(size=12))  + coord_flip()
+
+```
+
+
+
+
+
+
+$(b)$ Do there appear to be greater differences across *indicators* or across *community districts*? (In other words, are Manhattan community districts more alike or more different in how their citizens express their satisfaction with city life? 
+
+
+The highs and the lows for all the 12 community districts converge for only 3 -4 indicators .  For most other  indicators they show great variation in the  response value. Hence the  Manhattan community districts *more different* in how their citizens express their satisfaction with city life
+
+$(c)$ Which indicators have wide distributions (great variety) in responses?
+
+Neighborhood playgrounds ,  Neighbourhood Parks  , Neighbourhood as a place to live  show great variation .
+
+$(d)$ Does there appear to be a correlation between districts and overall satisfaction?  In order words, do some districts report high satisfaction on many indicators and some report low satisfaction on many indicators or are the results more mixed? (Hint: a different color for each community district helps identify these trends). 
+
+district 7 and district 8 show high values across most indicators. There does not seem to be a correlation between districts and overall satisfaction . 
+
+**$2.$ Mosaic Plots**
+
+Using the "Death2015.txt" data from the previous assignment, create a mosaic plot to identify whether `Age` is associated with `Place of Death`. Include only the top four `Age` categories. Treat `Age` as the independent variable and `Place of Death` as the dependent variable. (Hint: the dependent variable should be the last cut and it should be horizontal.) The labeling should be clear enough to identify what's what, that is, "good enough," not perfect. Do the variables appear to be associated? Describe briefly.
+
+
+The Age   does  appear to be  associated with Place of Death . The size of the block for Age 85 + is the biggest for "Nursing Home/Long Term care"  or "Medical Facility Inpatient" . As the age grows the person is more likely to die in either of these two places . 
+
+```{r ,fig.width = 3, fig.height = 5}
+
+library(vcd)
+library(vcdExtra)
+library("dplyr")
+Death2015 <- read.delim("Death2015.txt")
+
+countorder <- Death2015 %>% group_by(Ten.Year.Age.Groups.Code) %>% summarize(count = sum(Deaths))
+countorder <- na.omit(countorder)
+top4_age <- countorder %>% group_by(Ten.Year.Age.Groups.Code) %>% tally(count) %>% top_n(4) # pick the top four groups by death 
+Death2015_new <- Death2015 %>% filter(Ten.Year.Age.Groups.Code %in% top4_age$Ten.Year.Age.Groups.Code)
+
+#countorder_new <- Death2015_new %>% group_by(Ten.Year.Age.Groups.Code,Place.of.Death ) %>% summarize(count = sum(Deaths))
+vcd::mosaic(Place.of.Death ~ Ten.Year.Age.Groups.Code    , Death2015_new,
+       direction = c("v","h" ),
+       gp = gpar(fill = c("blue", "lightblue")),
+       
+      labeling = labeling_border(rot_labels = c(0)),
+       main = "Age is associated with Place of Death")
+
+```
+
+
+
+**$3.$ Time Series**
+
+$(a)$ Use the `tidyquant` package to collect stock information on four stocks of your choosing.  Create a line chart showing the closing price of the four stocks on the same graph, employing a different color for each stock.
+
+
+$(b)$ Transform the data so each stock begins at 100 and replot. Do you learn anything new that wasn't visible in part (a)?
+
+
+```{r}
+
+library(tidyquant)
+from <- today() - months(6)
+AAPL <- tq_get("AAPL", get = "stock.prices", from = from)
+AAPL$stockName <- "AAPL"
+AAPL$percentPrice <- (AAPL$close/AAPL$close[1])*100
+#AAPL
+
+NUAN <- tq_get("NUAN", get = "stock.prices", from = from)
+NUAN$stockName <- "NUAN"
+NUAN$percentPrice <- (NUAN$close/NUAN$close[1])*100
+
+PETX <- tq_get("PETX", get = "stock.prices", from = from)
+PETX$stockName <- "PETX"
+PETX$percentPrice <- (PETX$close/PETX$close[1])*100
+
+IPAR <- tq_get("IPAR", get = "stock.prices", from = from)
+IPAR$stockName <- "IPAR"
+IPAR$percentPrice <- (IPAR$close/IPAR$close[1])*100
+
+
+stocks <- do.call("rbind", list(AAPL, NUAN, PETX, IPAR))
+
+
+# Basic line plot with points
+ggplot(data=stocks, aes(x=date, y=close, group=stockName)) +
+  geom_line(aes(color=stockName))+
+  geom_point(aes(color=stockName))
+
+# Basic line plot without points
+#ggplot(data=stocks, aes(x=date, y=close, group=stockName)) +
+#  geom_line(aes(color=stockName))
+
+
+# Basic line plot with points
+ggplot(data=stocks, aes(x=date, y=percentPrice, group=stockName)) +
+  geom_line(aes(color=stockName))+
+  geom_point(aes(color=stockName))
+
+```
+
+After standardising stock prices to begin at 100   the price volatility is relvealed for all stocks .  The PETX stock which was relatively lower in the regualr line graph shows a great variation after starting at 100 . 
+
+
+**$4.$ Missing Data**
+
+For this question, explore the New York State Feb 2017 snow accumulation dataset available in the data folder on CourseWorks: "NY-snowfall-201702.csv". The original data source is here: https://www.ncdc.noaa.gov/snow-and-ice/daily-snow/
+
+$(a)$ Show missing patterns graphically.
+
+$(b)$ Is the percent of missing values consistent across days of the month, or is there variety? 
+
+No . For certain days we see that the blue cells are more on the graph . Eg. Feb 08 , Feb 22 , Feb 25 , Feb 23 . The graph is sorted by descending order of missing values . This brings the days with the most missing values towards the left on the x- axis.
+
+
+$(c)$ Is the percent of missing values consistent across collection stations, or is there variety?
+
+No . For certain collection stations we have a lot more blue cells. E.g Akron 2.4 S , Beaver Falls 0.1 SW do not have any values . The graph is sorted on the y-axis by the decreasing number  of missing values. The stations that are lower on the y-axis have more missing values. 
+
+$(d)$ Is the daily average snowfall correlated with the daily missing values percent?  On the basis of these results, what is your assessment of the reliability of the data to capture true snowfall patterns? In other words, based on what you've discovered, do you think that the missing data is highly problematic, or not?
+
+Yes, On occassions of 0 snowfall , we see that there are a lot more missing values .  Hence , it may be assumed that some stations do not report anything at all when there is no snowfall. 
+
+
+```{r fig.width=25,fig.height=25}
+
+library(tidyverse)
+snowdata <- read.csv("NY-snowfall-201702.csv",sep=",", skip = 1, header = TRUE)
+
+snowdata <- subset(snowdata, select = -c(GHCN.ID,County,Elevation,Latitude,Longitude) )
+snowdata[snowdata == "M"] <- NA
+rownames(snowdata) <- snowdata$Station.Name
+
+
+
+```
+
+
+```{r}
+library("tidyr")
+#install.packages("sqldf")
+library(sqldf)
+snowdata1 <- snowdata
+
+
+snowdata_tidy <- snowdata1 %>% gather("Day", "Snowfall" ,2:29)
+snowdata_na <- sqldf("select Day, count(*) as missing_count from snowdata_tidy where Snowfall is null group by Day")
+
+
+
+snowdata_tidy[is.na(snowdata_tidy)] <- 0.0
+#snowdata_summ <- snowdata_tidy %>% group_by(Day) %>% summarize(AvgSnow = sum(Snowfall))
+
+
+snowdata_summ <- sqldf("select Day, avg(Snowfall) as Avg_Snowfall from snowdata_tidy group by Day")
+
+snowdata_3 <- dplyr::inner_join(snowdata_na, snowdata_summ, by = "Day")
+
+
+
+ggplot(snowdata_3, aes(x = missing_count, y = Avg_Snowfall)) + geom_point()
+
+```
+
+```{r fig.width=25,fig.height=25}
+snowdata <- snowdata %>%
+  rownames_to_column("id") %>%
+  gather(key, value, -id) %>%
+  mutate(missing = ifelse(is.na(value), "Y", "N"))
+
+snowdata <- snowdata %>%
+  mutate(value = ifelse(value == "T", 0.01, value))
+
+snowdata <- snowdata %>%
+  mutate(missingY = ifelse(missing == "Y", 1, 0))
+
+
+ggplot(snowdata, aes(x = fct_reorder(key, -missingY, sum), y = fct_reorder(id, -missingY, sum), fill = missing)) + geom_tile(color = "black") + theme_minimal() +  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
